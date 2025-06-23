@@ -15,7 +15,6 @@ Ini adalah salah satu microservice dalam sistem e-commerce yang bertanggung jawa
 - **Redis** (caching)
 - **Elasticsearch** (pencarian produk)
 - **Cloudinary** (upload gambar)
-- **Docker** (opsional untuk deployment)
 - Validasi: `express-validator`
 - File upload: `multer`
 
