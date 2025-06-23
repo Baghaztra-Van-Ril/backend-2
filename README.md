@@ -45,18 +45,18 @@ Ini adalah salah satu microservice dalam sistem e-commerce yang bertanggung jawa
 ## ▶️ Cara Menjalankan Project
 
 
-# 1. Clone repositori
+#### 1. Clone repositori
 ```bash
 git clone https://github.com/Baghaztra-Van-Ril/backend2
 cd backend2
 ```
 
-# 2. Install semua dependensi
+#### 2. Install semua dependensi
 ```bash
 npm install
 ```
 
-# 3. Salin dan konfigurasi file environment
+#### 3. Salin dan konfigurasi file environment
 ```bash
 cp .env.example .env
 ```
@@ -69,18 +69,18 @@ Lalu isi variabel berikut di file `.env`:
 - `CLOUDINARY_API_SECRET`
 - `ELASTICSEARCH_NODE` (misalnya: http://localhost:9200)
 
-# 4. Generate Prisma Client dan migrate database
+#### 4. Generate Prisma Client dan migrate database
 ```bash
 npx prisma generate
 npx prisma migrate dev
 ```
 
-# 5. Inisialisasi Elasticsearch index untuk produk
+#### 5. Inisialisasi Elasticsearch index untuk produk
 ```bash
 npm run init:es
 ```
 
-# 6. Jalankan server
+#### 6. Jalankan server
 ```bash
 npm run dev
 ```
