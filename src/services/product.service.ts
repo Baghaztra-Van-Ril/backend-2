@@ -118,43 +118,36 @@ export async function searchProductService(query: string) {
     }
 }
 
-export async function createdProductService(
-    name: string,
-    description: string,
-    price: number,
-    size: number,
-    stock: number,
-    filePath: string
-) {
-    try {
-        const uploadResult = await cloudinary.uploader.upload(filePath, {
-            folder: "UAS-Topik-Khusus-Products"
-        });
-        fs.unlinkSync(filePath);
+import path from "path";
 
-        const newProduct = await prisma.product.create({
-            data: { name, description, price, size, stock, imageUrl: uploadResult.secure_url },
+export async function createPromoService(productId: number, discount: number, filePath: string) {
+    const fullPath = path.resolve(filePath);
+
+    try {
+        if (discount < 0 || discount > 1) {
+            throw new AppError("Discount must be between 0 and 1", 400);
+        }
+
+        const uploadResult = await cloudinary.uploader.upload(fullPath, {
+            folder: "UAS-Topik-Khusus-Promos",
         });
-        await esClient.index({
-            index: "uas-topik-khusus-products",
-            id: newProduct.id.toString(),
-            document: {
-                name: newProduct.name,
-                description: newProduct.description,
-                price: newProduct.price,
-                size: newProduct.size,
-                stock: newProduct.stock,
-                imageUrl: newProduct.imageUrl,
-                createdAt: newProduct.createdAt,
-                updatedAt: newProduct.updatedAt,
+
+        fs.unlinkSync(fullPath);
+
+        const newPromo = await prisma.promo.create({
+            data: {
+                productId,
+                discount,
+                imageUrl: uploadResult.secure_url,
+                isActive: true,
             },
         });
 
-        await redis.del("all_products");
-        return newProduct;
+        await redis.del("all_promos");
+        return newPromo;
     } catch (err) {
-        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-        throw new AppError("Failed to create product", 500);
+        if (fs.existsSync(fullPath)) fs.unlinkSync(fullPath);
+        throw new AppError("Failed to create promo", 500);
     }
 }
 
@@ -167,14 +160,16 @@ export async function updateProductService(
     filePath: string,
     productId: number
 ) {
+    const fullPath = filePath ? path.resolve(filePath) : null;
+
     try {
         let imageUrl = null;
 
-        if (filePath) {
-            const uploadResult = await cloudinary.uploader.upload(filePath, {
+        if (fullPath) {
+            const uploadResult = await cloudinary.uploader.upload(fullPath, {
                 folder: "UAS-Topik-Khusus-Products"
             });
-            fs.unlinkSync(filePath);
+            fs.unlinkSync(fullPath);
             imageUrl = uploadResult.secure_url;
         }
 
@@ -182,6 +177,7 @@ export async function updateProductService(
         if (imageUrl !== null) {
             updateProduct.imageUrl = imageUrl;
         }
+
         const updatedProduct = await prisma.product.update({
             where: { id: productId },
             data: updateProduct,
@@ -204,7 +200,7 @@ export async function updateProductService(
 
         return updatedProduct;
     } catch (err) {
-        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+        if (fullPath && fs.existsSync(fullPath)) fs.unlinkSync(fullPath);
         throw new AppError("Failed to update product", 500);
     }
 }
