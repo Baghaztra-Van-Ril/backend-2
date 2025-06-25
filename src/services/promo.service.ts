@@ -7,7 +7,7 @@ import fs from "fs";
 export async function getAllPromosService() {
     try {
         const cacheKey = "all_promos";
-        const cached = await redis.get(cacheKey);
+        const cached = await redis.get(cacheKey) as string | null;
         if (cached) return JSON.parse(cached);
 
         const promos = await prisma.promo.findMany({
@@ -16,7 +16,7 @@ export async function getAllPromosService() {
             },
         });
 
-        await redis.set(cacheKey, JSON.stringify(promos), 'EX', 60 * 60);
+        await redis.set(cacheKey, JSON.stringify(promos), { ex: 60 * 60 });
         return promos;
     } catch (err) {
         throw new AppError("Failed to fetch all promos", 500);
@@ -26,7 +26,7 @@ export async function getAllPromosService() {
 export async function getActivePromosService() {
     try {
         const cacheKey = "active_promos";
-        const cached = await redis.get(cacheKey);
+        const cached = await redis.get(cacheKey) as string | null;
         if (cached) return JSON.parse(cached);
 
         const activePromos = await prisma.promo.findMany({
@@ -34,7 +34,7 @@ export async function getActivePromosService() {
             include: { product: true },
         });
 
-        await redis.set(cacheKey, JSON.stringify(activePromos), 'EX', 60 * 60);
+        await redis.set(cacheKey, JSON.stringify(activePromos), { ex: 60 * 60 });
         return activePromos;
     } catch (err) {
         throw new AppError("Failed to fetch active promos", 500);
@@ -45,7 +45,7 @@ export async function getActivePromosService() {
 export async function getPromoByIdService(promoId: number) {
     try {
         const cacheKey = `promo_${promoId}`;
-        const cached = await redis.get(cacheKey);
+        const cached = await redis.get(cacheKey) as string | null;
         if (cached) return JSON.parse(cached);
 
         const promo = await prisma.promo.findUnique({
@@ -54,7 +54,7 @@ export async function getPromoByIdService(promoId: number) {
         });
         if (!promo) throw new AppError("Promo not found", 404);
 
-        await redis.set(cacheKey, JSON.stringify(promo), 'EX', 60 * 60);
+        await redis.set(cacheKey, JSON.stringify(promo), { ex: 60 * 60 });
         return promo;
     } catch (err) {
         if (err instanceof AppError) throw err;

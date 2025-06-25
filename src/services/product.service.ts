@@ -9,7 +9,7 @@ export async function getAllProductsService() {
     try {
         const cacheKey = "all_products";
         const cachedProducts = await redis.get(cacheKey);
-        if (cachedProducts) return JSON.parse(cachedProducts);
+        if (typeof cachedProducts === "string") return JSON.parse(cachedProducts);
 
         const products = await prisma.product.findMany({
             include: {
@@ -21,7 +21,8 @@ export async function getAllProductsService() {
             }
         });
 
-        await redis.set(cacheKey, JSON.stringify(products), 'EX', 60 * 60);
+        // Cache the products for 1 hour
+        await redis.set(cacheKey, JSON.stringify(products), { ex: 60 * 60 });
         return products;
     } catch (err) {
         throw new AppError("Failed to get all products", 500);
@@ -34,12 +35,13 @@ export async function getProductByIdService(productId: number, isAdmin = false) 
         const cached = await redis.get(cacheKey);
         let product;
 
-        if (cached) {
+        if (typeof cached === "string") {
             product = JSON.parse(cached);
         } else {
             product = await prisma.product.findUnique({ where: { id: productId } });
             if (!product) throw new AppError("Product not found", 404);
-            await redis.set(cacheKey, JSON.stringify(product), 'EX', 60 * 60);
+            // redis cache the product for 1 hour
+            await redis.set(cacheKey, JSON.stringify(product), { ex: 60 * 60 });
         }
 
         if (!isAdmin) {
@@ -61,7 +63,8 @@ export async function visitProductService(productId: number) {
         return;
     }
 
-    await redis.set(lockKey, "1", "EX", 1);
+    // Set a lock to prevent concurrent visits
+    await redis.set(lockKey, "1", { ex: 1 });
 
     await prisma.product.update({
         where: { id: productId },
@@ -73,14 +76,29 @@ export async function visitProductService(productId: number) {
 export async function searchProductService(query: string) {
     try {
         const result = await esClient.search({
-            index: "products",
+            index: "uas-topik-khusus-products",
             query: {
-                multi_match: {
-                    query: query,
-                    fields: ["name", "description"],
-                    fuzziness: "AUTO",
-                },
-            },
+                bool: {
+                    should: [
+                        {
+                            wildcard: {
+                                name: {
+                                    value: `*${query.toLowerCase()}*`,
+                                    case_insensitive: true
+                                }
+                            }
+                        },
+                        {
+                            wildcard: {
+                                description: {
+                                    value: `*${query.toLowerCase()}*`,
+                                    case_insensitive: true
+                                }
+                            }
+                        }
+                    ]
+                }
+            }
         });
 
         return result.hits.hits.map((hit: any) => ({
@@ -95,6 +113,7 @@ export async function searchProductService(query: string) {
             updatedAt: hit._source.updatedAt
         }));
     } catch (err) {
+        console.error("Elasticsearch search error:", (err as any)?.meta?.body || err);
         throw new AppError("Search failed", 500);
     }
 }
@@ -117,7 +136,7 @@ export async function createdProductService(
             data: { name, description, price, size, stock, imageUrl: uploadResult.secure_url },
         });
         await esClient.index({
-            index: "products",
+            index: "uas-topik-khusus-products",
             id: newProduct.id.toString(),
             document: {
                 name: newProduct.name,
@@ -127,9 +146,10 @@ export async function createdProductService(
                 stock: newProduct.stock,
                 imageUrl: newProduct.imageUrl,
                 createdAt: newProduct.createdAt,
-                updatedAt: newProduct.updatedAt
+                updatedAt: newProduct.updatedAt,
             },
         });
+
         await redis.del("all_products");
         return newProduct;
     } catch (err) {
@@ -168,7 +188,7 @@ export async function updateProductService(
         });
 
         await esClient.index({
-            index: "products",
+            index: "uas-topik-khusus-products",
             id: updatedProduct.id.toString(),
             document: {
                 name: updatedProduct.name,
@@ -178,9 +198,10 @@ export async function updateProductService(
                 stock: updatedProduct.stock,
                 imageUrl: updatedProduct.imageUrl,
                 createdAt: updatedProduct.createdAt,
-                updatedAt: updatedProduct.updatedAt
+                updatedAt: updatedProduct.updatedAt,
             },
         });
+
         return updatedProduct;
     } catch (err) {
         if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
@@ -199,7 +220,7 @@ export async function deleteProductService(productId: number) {
             if (publicId) await cloudinary.uploader.destroy(publicId);
         }
 
-        await esClient.delete({ index: "products", id: productId.toString() });
+        await esClient.delete({ index: "uas-topik-khusus-products", id: productId.toString() });
 
         await redis.del(`product_${productId}`);
         await redis.del("all_products");
@@ -207,6 +228,7 @@ export async function deleteProductService(productId: number) {
         return { message: "Product deleted successfully" };
     } catch (err) {
         if (err instanceof AppError) throw err;
+        console.error("Delete product error:", err);
         throw new AppError("Failed to delete product", 500);
     }
 }

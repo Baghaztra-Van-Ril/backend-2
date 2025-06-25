@@ -1,6 +1,9 @@
-import Redis from "ioredis";
+// Contoh: Set dan Get
+import { Redis } from "@upstash/redis";
+import * as dotenv from "dotenv";
+dotenv.config();
 
 export const redis = new Redis({
-    host: process.env.REDIS_HOST || '127.0.0.1',
-    port: Number(process.env.REDIS_PORT) || 6379,
+    url: process.env.UPSTASH_REDIS_REST_URL!,
+    token: process.env.UPSTASH_REDIS_REST_TOKEN!,
 });
