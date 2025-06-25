@@ -18,10 +18,10 @@ export async function addFavoriteService(userId: number, productId: number) {
     }
 }
 
-export async function removeFavoriteService(userId: number, productId: number) {
+export async function removeFavoriteService(favoriteId: number) {
     try {
         const favorite = await prisma.favorite.findFirst({
-            where: { userId, productId },
+            where: { id: favoriteId },
         });
         if (!favorite) throw new AppError("Favorite not found", 404);
 

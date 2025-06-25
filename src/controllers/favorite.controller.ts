@@ -25,12 +25,11 @@ export async function addFavoriteController(req: Request, res: Response<Response
 
 export async function removeFavoriteController(req: Request, res: Response<ResponseApiType>) {
     try {
-        const { userId, productId } = req.body;
-        const result = await removeFavoriteService(userId, productId);
+        const { id } = req.params;
+        const result = await removeFavoriteService(Number(id));
         res.status(200).json({
             success: true,
             message: "Product has been unfavorited",
-            data: result,
         });
     } catch (error) {
         handlerAnyError(error, res);
