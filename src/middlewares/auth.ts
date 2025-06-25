@@ -20,13 +20,15 @@ declare global {
 
 export async function authenticate(req: Request, res: Response, next: NextFunction): Promise<void> {
     const authHeader = req.headers.authorization;
+    const tokenFromHeader = authHeader?.startsWith("Bearer ") ? authHeader.split(" ")[1] : null;
+    const tokenFromCookie = req.cookies?.token || null;
 
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    const token = tokenFromHeader || tokenFromCookie;
+
+    if (!token) {
         res.status(401).json({ message: "Unauthorized: No token provided" });
         return;
     }
-
-    const token = authHeader.split(" ")[1];
 
     try {
         const isBlacklisted = await redis.get(`bl_${token}`);

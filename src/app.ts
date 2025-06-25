@@ -4,6 +4,7 @@ import dotenv from "dotenv"
 import { networkInterfaces } from "node:os"
 import apiRouter from "./routes/index.routes"
 import morgan from "morgan"
+import cookieParser from "cookie-parser";
 
 dotenv.config()
 const app = express()
@@ -15,6 +16,8 @@ app.use(cors({
     origin: process.env.FRONTEND_URL,
     credentials: true
 }))
+
+app.use(cookieParser());
 
 app.use("/api", apiRouter)
 
