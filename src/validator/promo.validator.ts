@@ -18,7 +18,15 @@ export const createPromoValidator = [
     body("discount")
         .notEmpty().withMessage("Discount is required")
         .bail()
-        .isInt({ min: 0, max: 100 }).withMessage("Discount must be between 0 and 100"),
+        .isDecimal().withMessage("Discount must be a decimal number")
+        .bail()
+        .custom((value) => {
+            const num = parseFloat(value);
+            if (num < 0 || num > 1) {
+                throw new Error("Discount must be between 0 and 1");
+            }
+            return true;
+        }),
 
     body("image")
         .custom((_, { req }) => {
@@ -43,7 +51,15 @@ export const updatePromoValidator = [
 
     body("discount")
         .optional()
-        .isInt({ min: 0, max: 100 }).withMessage("Discount must be between 0 and 100"),
+        .isDecimal().withMessage("Discount must be a decimal number")
+        .bail()
+        .custom((value) => {
+            const num = parseFloat(value);
+            if (num < 0 || num > 1) {
+                throw new Error("Discount must be between 0 and 1");
+            }
+            return true;
+        }),
 
     body("isActive")
         .optional()

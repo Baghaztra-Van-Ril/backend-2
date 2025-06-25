@@ -64,6 +64,10 @@ export async function getPromoByIdService(promoId: number) {
 
 export async function createPromoService(productId: number, discount: number, filePath: string) {
     try {
+        if (discount < 0 || discount > 1) {
+            throw new AppError("Discount must be between 0 and 1", 400);
+        }
+
         const uploadResult = await cloudinary.uploader.upload(filePath, {
             folder: "UAS-Topik-Khusus-Promos",
         });
@@ -86,9 +90,12 @@ export async function createPromoService(productId: number, discount: number, fi
     }
 }
 
-export async function updatePromoService(promoId: number, discount: number, isActive: boolean, filePath?: string
-) {
+export async function updatePromoService(promoId: number, discount: number, isActive: boolean, filePath?: string) {
     try {
+        if (discount < 0 || discount > 1) {
+            throw new AppError("Discount must be between 0 and 1", 400);
+        }
+
         let imageUrl = undefined;
         if (filePath) {
             const uploadResult = await cloudinary.uploader.upload(filePath, {
@@ -110,7 +117,7 @@ export async function updatePromoService(promoId: number, discount: number, isAc
         });
 
         await redis.del("all_promos");
-        await redis.del("active_promos")
+        await redis.del("active_promos");
         await redis.del(`promo_${promoId}`);
         return updatedPromo;
     } catch (err) {
