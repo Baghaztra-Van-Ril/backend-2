@@ -61,12 +61,19 @@ cp .env.example .env
 ```
 
 Lalu isi variabel berikut di file `.env`:
-- `DATABASE_URL`
-- `REDIS_URL`
-- `CLOUDINARY_NAME`
-- `CLOUDINARY_API_KEY`
-- `CLOUDINARY_API_SECRET`
-- `ELASTICSEARCH_NODE` (misalnya: http://localhost:9200)
+```bash
+DATABASE_URL=""
+FRONTEND_URL=""
+PORT=
+ELASTICSEARCH_URL=""
+ELASTIC_API_KEY=""
+UPSTASH_REDIS_REST_URL=""
+UPSTASH_REDIS_REST_TOKEN=""
+CLOUDINARY_CLOUD_NAME=
+CLOUDINARY_API_KEY=
+CLOUDINARY_API_SECRET=
+JWT_SECRET=
+```
 
 #### 4. Generate Prisma Client dan migrate database
 ```bash
