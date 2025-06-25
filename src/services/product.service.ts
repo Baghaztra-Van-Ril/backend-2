@@ -28,16 +28,24 @@ export async function getAllProductsService() {
     }
 }
 
-export async function getProductByIdService(productId: number) {
+export async function getProductByIdService(productId: number, isAdmin = false) {
     try {
         const cacheKey = `product_${productId}`;
         const cached = await redis.get(cacheKey);
-        if (cached) return JSON.parse(cached);
+        let product;
 
-        const product = await prisma.product.findUnique({ where: { id: productId } });
-        if (!product) throw new AppError("Product not found", 404);
+        if (cached) {
+            product = JSON.parse(cached);
+        } else {
+            product = await prisma.product.findUnique({ where: { id: productId } });
+            if (!product) throw new AppError("Product not found", 404);
+            await redis.set(cacheKey, JSON.stringify(product), 'EX', 60 * 60);
+        }
 
-        await redis.set(cacheKey, JSON.stringify(product), 'EX', 60 * 60);
+        if (!isAdmin) {
+            await visitProductService(productId);
+        }
+
         return product;
     } catch (err) {
         if (err instanceof AppError) throw err;
@@ -46,15 +54,20 @@ export async function getProductByIdService(productId: number) {
 }
 
 export async function visitProductService(productId: number) {
-    try {
-        await prisma.product.update({
-            where: { id: productId },
-            data: { visitCount: { increment: 1 } },
-        });
-        await redis.del(`product_${productId}`);
-    } catch (err) {
-        throw new AppError("Failed to increment visit count", 500);
+    const lockKey = `lock_visit_${productId}`;
+    const alreadyVisited = await redis.get(lockKey);
+
+    if (alreadyVisited) {
+        return;
     }
+
+    await redis.set(lockKey, "1", "EX", 1);
+
+    await prisma.product.update({
+        where: { id: productId },
+        data: { visitCount: { increment: 1 } },
+    });
+    await redis.del(`product_${productId}`);
 }
 
 export async function searchProductService(query: string) {

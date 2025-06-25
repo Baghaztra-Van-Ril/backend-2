@@ -18,7 +18,6 @@ export async function addFavoriteService(userId: number, productId: number) {
     }
 }
 
-
 export async function removeFavoriteService(userId: number, productId: number) {
     try {
         const favorite = await prisma.favorite.findFirst({
@@ -42,5 +41,34 @@ export async function getFavoritesCountService(productId: number) {
         return { favoritesCount: count };
     } catch (err) {
         throw new AppError("Failed to get favorite count", 500);
+    }
+}
+
+export async function getAllFavoriteService() {
+    try {
+        const favorites = await prisma.favorite.findMany({
+            include: {
+                product: true,
+            }
+        });
+        return favorites;
+    } catch (err) {
+        throw new AppError("Failed to get all favorites", 500);
+    }
+}
+
+export async function getUserFavoritesService(userId: number) {
+    try {
+        const favorites = await prisma.favorite.findMany({
+            where: { userId },
+            include: {
+                product: true,
+            },
+        });
+
+        const products = favorites.map((fav) => fav.product);
+        return products;
+    } catch (err) {
+        throw new AppError("Failed to get user favorites", 500);
     }
 }
