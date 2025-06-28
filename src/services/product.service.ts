@@ -31,7 +31,7 @@ export async function getAllProductsService() {
     }
 }
 
-export async function getProductByIdService(productId: number, isAdmin = false) {
+export async function getProductByIdService(productId: number, userRole?: string) {
     try {
         const cacheKey = `product_${productId}`;
         const cached = await redis.get(cacheKey);
@@ -46,6 +46,8 @@ export async function getProductByIdService(productId: number, isAdmin = false) 
             await redis.set(cacheKey, JSON.stringify(product), { ex: 60 * 60 });
         }
 
+        // Hanya increment visit count jika bukan ADMIN
+        const isAdmin = userRole === "ADMIN";
         if (!isAdmin) {
             await visitProductService(productId);
         }
@@ -65,13 +67,15 @@ export async function visitProductService(productId: number) {
         return;
     }
 
-    // Set a lock to prevent concurrent visits
+    // Set a lock to prevent concurrent visits (1 detik)
     await redis.set(lockKey, "1", { ex: 1 });
 
     await prisma.product.update({
         where: { id: productId },
         data: { visitCount: { increment: 1 } },
     });
+    
+    // Hapus cache produk setelah update visit count
     await redis.del(`product_${productId}`);
 }
 

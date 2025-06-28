@@ -23,10 +23,21 @@ export async function getAllProductController(req: Request, res: Response<Respon
 export async function getProductByIdController(req: Request, res: Response<ResponseApiType>, next: NextFunction) {
     try {
         const { id } = req.params;
-        const isAdmin = req.user?.role === "ADMIN";
-        const product = await getProductByIdService(Number(id), isAdmin);
-        await visitProductService(Number(id));
-        res.status(200).json({ success: true, message: `Fetched product with id: ${id}`, data: product });
+        
+        // Ambil role dari user yang login, jika tidak ada maka dianggap sebagai guest
+        const userRole = req.user?.role;
+        
+        console.log("USER:", req.user); // debug lengkap
+        console.log("ROLE:", userRole); // debug
+        console.log("Is Admin?", userRole === "ADMIN"); // debug
+
+        const product = await getProductByIdService(Number(id), userRole);
+
+        res.status(200).json({
+            success: true,
+            message: `Fetched product with id: ${id}`,
+            data: product,
+        });
     } catch (error) {
         handlerAnyError(error, res);
     }
