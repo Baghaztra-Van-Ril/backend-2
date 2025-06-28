@@ -4,7 +4,7 @@ import { handlerAnyError } from "../errors/handle_error";
 import {
     getAllProductsService,
     getProductByIdService,
-    createdProductService,
+    createProductService,
     updateProductService,
     deleteProductService,
     visitProductService,
@@ -37,8 +37,21 @@ export async function createProductController(req: Request, res: Response<Respon
         const { name, description, price, size, stock } = req.body;
         const filePath = req.file?.path;
         if (!filePath) throw new Error("Image file is required");
-        const newProduct = await createdProductService(name, description, Number(price), Number(size), Number(stock), filePath);
-        res.status(201).json({ success: true, message: `Product successfully added: ${newProduct.name}`, data: newProduct });
+
+        const newProduct = await createProductService(
+            name,
+            description,
+            Number(price),
+            Number(size),
+            Number(stock),
+            filePath
+        );
+
+        res.status(201).json({
+            success: true,
+            message: `Product successfully added: ${newProduct.name}`,
+            data: newProduct,
+        });
     } catch (error) {
         handlerAnyError(error, res);
     }

@@ -4,6 +4,8 @@ import cloudinary from "../config/cloudinary";
 import { esClient } from "../config/elasticsearch";
 import { redis } from "../config/redis";
 import fs from "fs";
+import path from "path";
+
 
 export async function getAllProductsService() {
     try {
@@ -118,36 +120,60 @@ export async function searchProductService(query: string) {
     }
 }
 
-import path from "path";
 
-export async function createPromoService(productId: number, discount: number, filePath: string) {
+export async function createProductService(
+    name: string,
+    description: string,
+    price: number,
+    size: number,
+    stock: number,
+    filePath: string
+) {
     const fullPath = path.resolve(filePath);
 
     try {
-        if (discount < 0 || discount > 1) {
-            throw new AppError("Discount must be between 0 and 1", 400);
+        if (price < 0 || size <= 0 || stock < 0) {
+            throw new AppError("Invalid product data: price, size, or stock", 400);
         }
 
         const uploadResult = await cloudinary.uploader.upload(fullPath, {
-            folder: "UAS-Topik-Khusus-Promos",
+            folder: "UAS-Topik-Khusus-Products",
         });
 
         fs.unlinkSync(fullPath);
 
-        const newPromo = await prisma.promo.create({
+        const newProduct = await prisma.product.create({
             data: {
-                productId,
-                discount,
+                name,
+                description,
+                price,
+                size,
+                stock,
                 imageUrl: uploadResult.secure_url,
-                isActive: true,
             },
         });
 
-        await redis.del("all_promos");
-        return newPromo;
+        await esClient.index({
+            index: "uas-topik-khusus-products",
+            id: newProduct.id.toString(),
+            document: {
+                name: newProduct.name,
+                description: newProduct.description,
+                price: newProduct.price,
+                size: newProduct.size,
+                stock: newProduct.stock,
+                imageUrl: newProduct.imageUrl,
+                createdAt: newProduct.createdAt,
+                updatedAt: newProduct.updatedAt,
+            },
+        });
+
+        await redis.del("all_products");
+
+        return newProduct;
     } catch (err) {
         if (fs.existsSync(fullPath)) fs.unlinkSync(fullPath);
-        throw new AppError("Failed to create promo", 500);
+        throw new AppError("Failed to create product", 500);
     }
 }
 
