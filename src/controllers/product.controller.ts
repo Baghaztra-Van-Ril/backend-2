@@ -7,7 +7,6 @@ import {
     createProductService,
     updateProductService,
     deleteProductService,
-    visitProductService,
     searchProductService
 } from "../services/product.service";
 
@@ -26,10 +25,6 @@ export async function getProductByIdController(req: Request, res: Response<Respo
         
         // Ambil role dari user yang login, jika tidak ada maka dianggap sebagai guest
         const userRole = req.user?.role;
-        
-        console.log("USER:", req.user); // debug lengkap
-        console.log("ROLE:", userRole); // debug
-        console.log("Is Admin?", userRole === "ADMIN"); // debug
 
         const product = await getProductByIdService(Number(id), userRole);
 
