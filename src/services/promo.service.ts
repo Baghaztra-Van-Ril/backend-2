@@ -7,18 +7,22 @@ import fs from "fs";
 export async function getAllPromosService() {
     try {
         const cacheKey = "all_promos";
-        const cached = await redis.get(cacheKey) as string | null;
-        if (cached) return JSON.parse(cached);
+        const cached: string | null = await redis.get(cacheKey);
+        if (cached) {
+            try {
+                return JSON.parse(cached);
+            } catch {
+                await redis.del(cacheKey);
+            }
+        }
 
         const promos = await prisma.promo.findMany({
-            include: {
-                product: true,
-            },
+            include: { product: true },
         });
 
-        await redis.set(cacheKey, JSON.stringify(promos), { ex: 60 * 60 });
+        await redis.set(cacheKey, JSON.stringify(promos), { ex: 3600 });
         return promos;
-    } catch (err) {
+    } catch {
         throw new AppError("Failed to fetch all promos", 500);
     }
 }
@@ -26,35 +30,47 @@ export async function getAllPromosService() {
 export async function getActivePromosService() {
     try {
         const cacheKey = "active_promos";
-        const cached = await redis.get(cacheKey) as string | null;
-        if (cached) return JSON.parse(cached);
+        const cached: string | null = await redis.get(cacheKey);
+        if (cached) {
+            try {
+                return JSON.parse(cached);
+            } catch {
+                await redis.del(cacheKey);
+            }
+        }
 
-        const activePromos = await prisma.promo.findMany({
+        const promos = await prisma.promo.findMany({
             where: { isActive: true },
             include: { product: true },
         });
 
-        await redis.set(cacheKey, JSON.stringify(activePromos), { ex: 60 * 60 });
-        return activePromos;
-    } catch (err) {
+        await redis.set(cacheKey, JSON.stringify(promos), { ex: 3600 });
+        return promos;
+    } catch {
         throw new AppError("Failed to fetch active promos", 500);
     }
 }
 
-
 export async function getPromoByIdService(promoId: number) {
     try {
         const cacheKey = `promo_${promoId}`;
-        const cached = await redis.get(cacheKey) as string | null;
-        if (cached) return JSON.parse(cached);
+        const cached: string | null = await redis.get(cacheKey);
+        if (cached) {
+            try {
+                return JSON.parse(cached);
+            } catch {
+                await redis.del(cacheKey);
+            }
+        }
 
         const promo = await prisma.promo.findUnique({
             where: { id: promoId },
             include: { product: true },
         });
+
         if (!promo) throw new AppError("Promo not found", 404);
 
-        await redis.set(cacheKey, JSON.stringify(promo), { ex: 60 * 60 });
+        await redis.set(cacheKey, JSON.stringify(promo), { ex: 3600 });
         return promo;
     } catch (err) {
         if (err instanceof AppError) throw err;

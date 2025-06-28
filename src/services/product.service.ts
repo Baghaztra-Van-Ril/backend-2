@@ -52,6 +52,11 @@ export async function getProductByIdService(productId: number, userRole?: string
             await visitProductService(productId);
         }
 
+        // Ambil data promo yang terkait dengan produk ini
+        const promo = await prisma.promo.findMany({
+            where: { productId: productId }
+        });
+        product = { ...product, promo };
         return product;
     } catch (err) {
         if (err instanceof AppError) throw err;
