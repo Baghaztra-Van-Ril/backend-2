@@ -1,4 +1,5 @@
-import prisma from "../config/prisma";
+import { primaryPrisma } from "../config/prisma_primary";
+import { replicaPrisma } from "../config/prisma_slave";
 import { AppError } from "../errors/handle_error";
 import cloudinary from "../config/cloudinary";
 import { redis } from "../config/redis";
@@ -16,13 +17,15 @@ export async function getAllPromosService() {
             }
         }
 
-        const promos = await prisma.promo.findMany({
+        const promos = await replicaPrisma.promo.findMany({
+            where: { isActive: true },
             include: { product: true },
         });
 
         await redis.set(cacheKey, JSON.stringify(promos), { ex: 3600 });
         return promos;
     } catch {
+        console.error("Error fetching all promos from database");
         throw new AppError("Failed to fetch all promos", 500);
     }
 }
@@ -39,7 +42,7 @@ export async function getActivePromosService() {
             }
         }
 
-        const promos = await prisma.promo.findMany({
+        const promos = await replicaPrisma.promo.findMany({
             where: { isActive: true },
             include: { product: true },
         });
@@ -63,8 +66,8 @@ export async function getPromoByIdService(promoId: number) {
             }
         }
 
-        const promo = await prisma.promo.findUnique({
-            where: { id: promoId },
+        const promo = await replicaPrisma.promo.findFirst({
+            where: { id: promoId, isActive: true },
             include: { product: true },
         });
 
@@ -89,7 +92,7 @@ export async function createPromoService(productId: number, discount: number, fi
         });
         fs.unlinkSync(filePath);
 
-        const newPromo = await prisma.promo.create({
+        const newPromo = await primaryPrisma.promo.create({
             data: {
                 productId,
                 discount,
@@ -127,7 +130,7 @@ export async function updatePromoService(promoId: number, discount: number, isAc
         };
         if (imageUrl) data.imageUrl = imageUrl;
 
-        const updatedPromo = await prisma.promo.update({
+        const updatedPromo = await primaryPrisma.promo.update({
             where: { id: promoId },
             data,
         });
@@ -144,7 +147,7 @@ export async function updatePromoService(promoId: number, discount: number, isAc
 
 export async function deletePromoService(promoId: number) {
     try {
-        const promo = await prisma.promo.findUnique({ where: { id: promoId } });
+        const promo = await primaryPrisma.promo.findUnique({ where: { id: promoId } });
         if (!promo) throw new AppError("Promo not found", 404);
 
         if (promo.imageUrl) {
@@ -153,7 +156,7 @@ export async function deletePromoService(promoId: number) {
             if (publicId) await cloudinary.uploader.destroy(publicId);
         }
 
-        await prisma.promo.delete({ where: { id: promoId } });
+        await primaryPrisma.promo.delete({ where: { id: promoId } });
 
         await redis.del("all_promos");
         await redis.del(`promo_${promoId}`);

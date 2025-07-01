@@ -41,6 +41,7 @@ model Product {
   size         Int
   stock        Int           @default(0)
   visitCount   Int           @default(0)
+  isDeleted    Boolean       @default(false)
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
   transactions Transaction[]
@@ -53,9 +54,16 @@ model Transaction {
   orderId        String    @unique
   userId         Int
   productId      Int
-  totalPrice     Int
   quantity       Int
+  price          Int
+  totalPrice     Int
+  promoId        Int?
+  promoAmount    Int?
+  finalAmount    Int
   paymentStatus  String
+  paymentMethod  String
+  paymentRef     String?
+  snapToken      String?
   shipmentStatus String
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
@@ -63,30 +71,31 @@ model Transaction {
 
   user    User    @relation(fields: [userId], references: [id])
   product Product @relation(fields: [productId], references: [id])
+  promo   Promo?  @relation(fields: [promoId], references: [id])
 }
 
 model Promo {
-  id         Int      @id @default(autoincrement())
-  productId  Int
-  imageUrl   String
-  discount   Decimal
-  isActive   Boolean  @default(true)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id        Int      @id @default(autoincrement())
+  productId Int
+  imageUrl  String
+  discount  Decimal
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  product     Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
+  Transaction Transaction[]
 }
 
 model Favorite {
-  id         Int      @id @default(autoincrement())
-  userId     Int
-  productId  Int
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  productId Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@unique([userId, productId])
 }
-

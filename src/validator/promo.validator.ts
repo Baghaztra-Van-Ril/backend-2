@@ -1,5 +1,5 @@
 import { body } from "express-validator";
-import prisma from "../config/prisma";
+import { primaryPrisma } from "../config/prisma_primary";
 
 const allowedMimeTypes = ["image/jpeg", "image/png", "image/jpg"];
 
@@ -10,8 +10,10 @@ export const createPromoValidator = [
         .isInt({ min: 1 }).withMessage("Product ID must be a valid integer")
         .bail()
         .custom(async (id) => {
-            const product = await prisma.product.findUnique({ where: { id: Number(id) } });
-            if (!product) throw new Error("Product not found");
+            const product = await primaryPrisma.product.findFirst({
+                where: { id: Number(id), isDeleted: false },
+            });
+            if (!product) throw new Error("Product not found or has been deleted");
             return true;
         }),
 
@@ -35,7 +37,7 @@ export const createPromoValidator = [
                 throw new Error("Invalid image format (allowed: jpeg, png, jpg)");
             }
             return true;
-        })
+        }),
 ];
 
 export const updatePromoValidator = [
@@ -44,8 +46,10 @@ export const updatePromoValidator = [
         .isInt({ min: 1 }).withMessage("Product ID must be a valid integer")
         .bail()
         .custom(async (id) => {
-            const product = await prisma.product.findUnique({ where: { id: Number(id) } });
-            if (!product) throw new Error("Product not found");
+            const product = await primaryPrisma.product.findFirst({
+                where: { id: Number(id), isDeleted: false },
+            });
+            if (!product) throw new Error("Product not found or has been deleted");
             return true;
         }),
 
@@ -73,5 +77,5 @@ export const updatePromoValidator = [
                 throw new Error("Invalid image format (allowed: jpeg, png, jpg)");
             }
             return true;
-        })
+        }),
 ];

@@ -1,4 +1,5 @@
-import prisma from "../config/prisma";
+import { primaryPrisma } from "../config/prisma_primary";
+import { replicaPrisma } from "../config/prisma_slave";
 import { AppError } from "../errors/handle_error";
 import cloudinary from "../config/cloudinary";
 import { esClient } from "../config/elasticsearch";
@@ -6,18 +7,21 @@ import { redis } from "../config/redis";
 import fs from "fs";
 import path from "path";
 
-
 export async function getAllProductsService() {
     try {
         const cacheKey = "all_products";
         const cachedProducts = await redis.get(cacheKey);
         if (typeof cachedProducts === "string") return JSON.parse(cachedProducts);
 
-        const products = await prisma.product.findMany({
+        const products = await replicaPrisma.product.findMany({
+            where: {
+                isDeleted: false // Hanya ambil produk yang belum dihapus
+            },
             include: {
                 _count: {
                     select: {
-                        favorites: true
+                        favorites: true,
+                        transactions: true
                     }
                 }
             }
@@ -40,7 +44,7 @@ export async function getProductByIdService(productId: number, userRole?: string
         if (typeof cached === "string") {
             product = JSON.parse(cached);
         } else {
-            product = await prisma.product.findUnique({ where: { id: productId } });
+            product = await replicaPrisma.product.findFirst({ where: { id: productId, isDeleted: false } });
             if (!product) throw new AppError("Product not found", 404);
             // redis cache the product for 1 hour
             await redis.set(cacheKey, JSON.stringify(product), { ex: 60 * 60 });
@@ -53,7 +57,7 @@ export async function getProductByIdService(productId: number, userRole?: string
         }
 
         // Ambil data promo yang terkait dengan produk ini
-        const promo = await prisma.promo.findMany({
+        const promo = await replicaPrisma.promo.findMany({
             where: { productId: productId }
         });
         product = { ...product, promo };
@@ -75,11 +79,11 @@ export async function visitProductService(productId: number) {
     // Set a lock to prevent concurrent visits (1 detik)
     await redis.set(lockKey, "1", { ex: 1 });
 
-    await prisma.product.update({
+    await primaryPrisma.product.update({
         where: { id: productId },
         data: { visitCount: { increment: 1 } },
     });
-    
+
     // Hapus cache produk setelah update visit count
     await redis.del(`product_${productId}`);
 }
@@ -90,26 +94,34 @@ export async function searchProductService(query: string) {
             index: "uas-topik-khusus-products",
             query: {
                 bool: {
+                    must: [
+                        {
+                            term: {
+                                isDeleted: false, //  Filter produk yang belum dihapus
+                            },
+                        },
+                    ],
                     should: [
                         {
                             wildcard: {
                                 name: {
                                     value: `*${query.toLowerCase()}*`,
-                                    case_insensitive: true
-                                }
-                            }
+                                    case_insensitive: true,
+                                },
+                            },
                         },
                         {
                             wildcard: {
                                 description: {
                                     value: `*${query.toLowerCase()}*`,
-                                    case_insensitive: true
-                                }
-                            }
-                        }
-                    ]
-                }
-            }
+                                    case_insensitive: true,
+                                },
+                            },
+                        },
+                    ],
+                    minimum_should_match: 1, // setidaknya 1 dari `should` cocok
+                },
+            },
         });
 
         return result.hits.hits.map((hit: any) => ({
@@ -121,14 +133,13 @@ export async function searchProductService(query: string) {
             stock: hit._source.stock,
             imageUrl: hit._source.imageUrl,
             createdAt: hit._source.createdAt,
-            updatedAt: hit._source.updatedAt
+            updatedAt: hit._source.updatedAt,
         }));
     } catch (err) {
         console.error("Elasticsearch search error:", (err as any)?.meta?.body || err);
         throw new AppError("Search failed", 500);
     }
 }
-
 
 export async function createProductService(
     name: string,
@@ -151,7 +162,7 @@ export async function createProductService(
 
         fs.unlinkSync(fullPath);
 
-        const newProduct = await prisma.product.create({
+        const newProduct = await primaryPrisma.product.create({
             data: {
                 name,
                 description,
@@ -213,7 +224,7 @@ export async function updateProductService(
             updateProduct.imageUrl = imageUrl;
         }
 
-        const updatedProduct = await prisma.product.update({
+        const updatedProduct = await primaryPrisma.product.update({
             where: { id: productId },
             data: updateProduct,
         });
@@ -242,20 +253,25 @@ export async function updateProductService(
 
 export async function deleteProductService(productId: number) {
     try {
-        const product = await prisma.product.findUnique({ where: { id: productId } });
+        const product = await primaryPrisma.product.findUnique({ where: { id: productId } });
         if (!product) throw new AppError("Product not found", 404);
+        if (product.isDeleted) throw new AppError("Product already deleted", 400);
 
         if (product.imageUrl) {
-            const matches = product.imageUrl.match(/\/v\d+\/(.+)\.(jpg|JPG|jpeg|JPEG|png|PNG)/);
+            const matches = product.imageUrl.match(/\/v\d+\/(.+)\.(jpg|jpeg|png)/i);
             const publicId = matches?.[1];
             if (publicId) await cloudinary.uploader.destroy(publicId);
         }
 
         await esClient.delete({ index: "uas-topik-khusus-products", id: productId.toString() });
-
         await redis.del(`product_${productId}`);
         await redis.del("all_products");
-        await prisma.product.delete({ where: { id: productId } });
+
+        await primaryPrisma.product.update({
+            where: { id: productId },
+            data: { isDeleted: true },
+        });
+
         return { message: "Product deleted successfully" };
     } catch (err) {
         if (err instanceof AppError) throw err;
