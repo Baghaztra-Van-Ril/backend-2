@@ -257,13 +257,20 @@ export async function deleteProductService(productId: number) {
         if (!product) throw new AppError("Product not found", 404);
         if (product.isDeleted) throw new AppError("Product already deleted", 400);
 
-        if (product.imageUrl) {
-            const matches = product.imageUrl.match(/\/v\d+\/(.+)\.(jpg|jpeg|png)/i);
+        if (product.imageUrl && product.imageUrl.includes("res.cloudinary.com")) {
+            const matches = product.imageUrl.match(/\/v\d+\/(.+)\.(jpg|jpeg|png|webp)/i);
             const publicId = matches?.[1];
-            if (publicId) await cloudinary.uploader.destroy(publicId);
+
+            if (publicId) {
+                try {
+                    await cloudinary.uploader.destroy(publicId);
+                } catch (cloudinaryErr) {
+                    console.warn("Gagal hapus image dari Cloudinary (tidak fatal):", cloudinaryErr);
+                }
+            }
         }
 
-        await esClient.delete({ index: "uas-topik-khusus-products", id: productId.toString() });
+        await esClient.delete({ index: "uas-topik-khusus-products", id: productId.toString() }).catch(() => { });
         await redis.del(`product_${productId}`);
         await redis.del("all_products");
 
@@ -274,7 +281,6 @@ export async function deleteProductService(productId: number) {
 
         return { message: "Product deleted successfully" };
     } catch (err) {
-        if (err instanceof AppError) throw err;
         console.error("Delete product error:", err);
         throw new AppError("Failed to delete product", 500);
     }

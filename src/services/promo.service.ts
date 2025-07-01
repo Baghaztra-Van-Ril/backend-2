@@ -150,19 +150,27 @@ export async function deletePromoService(promoId: number) {
         const promo = await primaryPrisma.promo.findUnique({ where: { id: promoId } });
         if (!promo) throw new AppError("Promo not found", 404);
 
-        if (promo.imageUrl) {
-            const matches = promo.imageUrl.match(/\/v\d+\/(.+)\.(jpg|JPG|jpeg|JPEG|png|PNG)/);
+        if (promo.imageUrl && promo.imageUrl.includes("res.cloudinary.com")) {
+            const matches = promo.imageUrl.match(/\/v\d+\/(.+)\.(jpg|jpeg|png|webp)/i);
             const publicId = matches?.[1];
-            if (publicId) await cloudinary.uploader.destroy(publicId);
+
+            if (publicId) {
+                try {
+                    await cloudinary.uploader.destroy(publicId);
+                } catch (cloudinaryErr) {
+                    console.warn("Gagal hapus image dari Cloudinary (tidak fatal):", cloudinaryErr);
+                }
+            }
         }
 
         await primaryPrisma.promo.delete({ where: { id: promoId } });
 
-        await redis.del("all_promos");
         await redis.del(`promo_${promoId}`);
+        await redis.del("all_promos");
 
         return { message: "Promo deleted successfully" };
     } catch (err) {
+        console.error("Delete promo error:", err);
         if (err instanceof AppError) throw err;
         throw new AppError("Failed to delete promo", 500);
     }
