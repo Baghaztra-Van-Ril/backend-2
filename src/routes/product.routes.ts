@@ -17,6 +17,7 @@ const productRouter = Router();
 productRouter.get("/search", searchProductValidator, handleValidationErrors ,searchProductController);
 productRouter.get("/", getAllProductController);
 productRouter.get("/:id", authenticate, getProductByIdController);
+productRouter.get("/guest/:id", getProductByIdController);
 productRouter.post("/", authenticate, authorize("ADMIN"), upload.single("image"), createProductValidator, handleValidationErrors, createProductController);
 productRouter.put("/:id", authenticate, authorize("ADMIN"), upload.single("image"), updateProductValidator, handleValidationErrors, updateProductController);
 productRouter.delete("/:id", authenticate, authorize("ADMIN"), deleteProductController );

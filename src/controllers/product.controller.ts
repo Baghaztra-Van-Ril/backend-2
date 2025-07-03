@@ -24,7 +24,7 @@ export async function getProductByIdController(req: Request, res: Response<Respo
         const { id } = req.params;
         
         // Ambil role dari user yang login, jika tidak ada maka dianggap sebagai guest
-        const userRole = req.user?.role;
+        const userRole = req.user?.role ? "admin" : undefined;
 
         const product = await getProductByIdService(Number(id), userRole);
 
