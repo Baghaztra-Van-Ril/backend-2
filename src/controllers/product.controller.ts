@@ -13,6 +13,7 @@ import {
 export async function getAllProductController(req: Request, res: Response<ResponseApiType>, next: NextFunction) {
     try {
         const products = await getAllProductsService();
+        res.setHeader("Cache-Control", "no-store");
         res.status(200).json({ success: true, message: "Fetched all products successfully", data: products });
     } catch (error) {
         handlerAnyError(error, res);
@@ -23,10 +24,10 @@ export async function getProductByIdController(req: Request, res: Response<Respo
     try {
         const { id } = req.params;
         
-        // Ambil role dari user yang login, jika tidak ada maka dianggap sebagai guest
-        const userRole = req.user?.role ? "admin" : undefined;
+        const userRole = req.user?.role;
 
         const product = await getProductByIdService(Number(id), userRole);
+        res.setHeader("Cache-Control", "no-store");
 
         res.status(200).json({
             success: true,
@@ -90,6 +91,7 @@ export async function searchProductController(req: Request, res: Response<Respon
         const { q } = req.query;
         if (!q || typeof q !== 'string') throw new Error("Query parameter 'q' is required and must be a string");
         const products = await searchProductService(q);
+        res.setHeader("Cache-Control", "no-store");
         res.status(200).json({ success: true, message: "Search products success", data: products });
     } catch (error) {
         handlerAnyError(error, res);
