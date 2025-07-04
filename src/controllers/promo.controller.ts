@@ -13,6 +13,7 @@ import {
 export async function getAllPromoController(req: Request, res: Response<ResponseApiType>, next: NextFunction) {
     try {
         const promos = await getAllPromosService();
+        res.setHeader("Cache-Control", "no-store");
         res.status(200).json({ success: true, message: "Fetched all promos successfully", data: promos });
     } catch (error) {
         handlerAnyError(error, res);
@@ -22,6 +23,7 @@ export async function getAllPromoController(req: Request, res: Response<Response
 export async function getActivePromoController(req: Request, res: Response<ResponseApiType>, next: NextFunction) {
     try {
         const activePromos = await getActivePromosService();
+        res.setHeader("Cache-Control", "no-store");
         res.status(200).json({ success: true, message: "Fetched active promos successfully", data: activePromos });
     } catch (error) {
         handlerAnyError(error, res);
@@ -32,6 +34,7 @@ export async function getPromoByIdController(req: Request, res: Response<Respons
     try {
         const { id } = req.params;
         const promo = await getPromoByIdService(Number(id));
+        res.setHeader("Cache-Control", "no-store");
         res.status(200).json({ success: true, message: `Fetched promo with id: ${id}`, data: promo });
     } catch (error) {
         handlerAnyError(error, res);

@@ -61,6 +61,7 @@ export async function getFavoritesCountController(req: Request, res: Response<Re
 export async function getAllFavoriteController(req: Request, res: Response<ResponseApiType>) {
     try {
         const favorites = await getAllFavoriteService();
+        res.setHeader("Cache-Control", "no-store");
         res.status(200).json({
             success: true,
             message: "Fetched all favorites successfully",

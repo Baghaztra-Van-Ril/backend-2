@@ -2,9 +2,10 @@ import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import { redis } from "../config/redis";
 
+// Disesuaikan dengan payload JWT kamu
 interface JwtPayload {
-    id: string;
-    name: string;
+    id: number;
+    email: string;
     role: string;
     iat: number;
     exp: number;
@@ -18,23 +19,29 @@ declare global {
     }
 }
 
-export async function authenticate(req: Request, res: Response, next: NextFunction): Promise<void> {
+// Helper untuk ambil token dari header atau cookie
+function extractToken(req: Request): string | null {
     const authHeader = req.headers.authorization;
     const tokenFromHeader = authHeader?.startsWith("Bearer ") ? authHeader.split(" ")[1] : null;
 
-    const tokenFromCookie = req.cookies?.token ||
+    const tokenFromCookie =
+        req.cookies?.token ||
         req.cookies?.authToken ||
         req.cookies?.accessToken ||
         req.cookies?.jwt ||
         null;
 
-    const token = tokenFromHeader || tokenFromCookie;
+    return tokenFromHeader || tokenFromCookie;
+}
+
+// Middleware: Untuk user & guest (optional auth)
+export async function authenticate(req: Request, res: Response, next: NextFunction): Promise<void> {
+    const token = extractToken(req);
 
     if (!token) {
         console.log("Access as: GUEST");
         req.user = undefined;
-        next();
-        return;
+        return next();
     }
 
     try {
@@ -42,38 +49,29 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
         if (isBlacklisted) {
             console.log("Access as: GUEST (token blacklisted)");
             req.user = undefined;
-            next();
-            return;
+            return next();
         }
 
         const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as JwtPayload;
-        console.log(`Access as: ${decoded.role} (${decoded.name})`);
         req.user = decoded;
-        next();
-    } catch (err: any) {
+        console.log(`Access as: ${decoded.role} (user ID: ${decoded.id}, email: ${decoded.email})`);
+        return next();
+    } catch {
         console.log("Access as: GUEST (invalid token)");
         req.user = undefined;
-        next();
+        return next();
     }
 }
 
+// Middleware: Hanya untuk user yang login (wajib token valid)
 export async function requireAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
-    const authHeader = req.headers.authorization;
-    const tokenFromHeader = authHeader?.startsWith("Bearer ") ? authHeader.split(" ")[1] : null;
-
-    const tokenFromCookie = req.cookies?.token ||
-        req.cookies?.authToken ||
-        req.cookies?.accessToken ||
-        req.cookies?.jwt ||
-        null;
-
-    const token = tokenFromHeader || tokenFromCookie;
+    const token = extractToken(req);
 
     if (!token) {
         console.log("Access denied: No token provided");
         res.status(401).json({
             success: false,
-            message: "Unauthorized: No token provided"
+            message: "Unauthorized: No token provided",
         });
         return;
     }
@@ -84,38 +82,40 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
             console.log("Access denied: Token blacklisted");
             res.status(401).json({
                 success: false,
-                message: "Unauthorized: Token is blacklisted"
+                message: "Unauthorized: Token is blacklisted",
             });
             return;
         }
 
         const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as JwtPayload;
-        console.log(`Authenticated as: ${decoded.role} (${decoded.name})`);
         req.user = decoded;
-        next();
-    } catch (err: any) {
+        console.log(`Authenticated as: ${decoded.role} (user ID: ${decoded.id}, email: ${decoded.email})`);
+        return next();
+    } catch {
         console.log("Access denied: Invalid token");
         res.status(401).json({
             success: false,
-            message: "Unauthorized: Invalid token"
+            message: "Unauthorized: Invalid token",
         });
+        return;
     }
 }
 
+// Middleware: Role-based access control
 export function authorize(...allowedRoles: string[]) {
     return (req: Request, res: Response, next: NextFunction): void => {
         const user = req.user;
 
         if (!user || !allowedRoles.includes(user.role)) {
-            console.log(`Authorization failed: User role '${user?.role || 'none'}' not in allowed roles [${allowedRoles.join(', ')}]`);
+            console.log(`Authorization failed: Role '${user?.role || "none"}' not allowed [${allowedRoles.join(", ")}]`);
             res.status(403).json({
                 success: false,
-                message: "Forbidden: Access denied"
+                message: "Forbidden: Access denied",
             });
             return;
         }
-        
-        console.log(`Authorization success: ${user.role} access granted`);
-        next();
+
+        console.log(`Authorization success: Role '${user.role}' granted`);
+        return next();
     };
 }
