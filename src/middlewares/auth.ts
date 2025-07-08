@@ -30,8 +30,7 @@ function extractToken(req: Request): string | null {
         req.cookies?.accessToken ||
         req.cookies?.jwt ||
         null;
-console.log("🍪 Cookies diterima:", req.cookies);
-    console.log("🌐 Host:", req.hostname);    return tokenFromHeader || tokenFromCookie;
+    return tokenFromHeader || tokenFromCookie;
     
 }
 
