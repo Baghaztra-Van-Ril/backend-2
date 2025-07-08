@@ -35,33 +35,49 @@ export async function getAllProductsService() {
     }
 }
 
-export async function getProductByIdService(productId: number, userRole?: string) {
+export async function getProductByIdService(productId: number, userId?: number, userRole?: string) {
     try {
         const cacheKey = `product_${productId}`;
         const cached = await redis.get(cacheKey);
-        let product;
+        let product: any;
+        let favorites: { userId: number }[] = [];
 
         if (typeof cached === "string") {
             product = JSON.parse(cached);
         } else {
-            product = await replicaPrisma.product.findFirst({ where: { id: productId, isDeleted: false } });
-            if (!product) throw new AppError("Product not found", 404);
-            // redis cache the product for 1 hour
-            await redis.set(cacheKey, JSON.stringify(product), { ex: 60 * 60 });
+            const dbResult = await replicaPrisma.product.findFirst({
+                where: { id: productId, isDeleted: false },
+                include: {
+                    _count: { select: { favorites: true } },
+                    favorites: { select: { userId: true } },
+                },
+            });
+
+            if (!dbResult) throw new AppError("Product not found", 404);
+
+            const { favorites: fav, _count, ...rest } = dbResult;
+            favorites = fav;
+            product = { ...rest, _count };
+
+            await redis.set(cacheKey, JSON.stringify(product), { ex: 3600 });
         }
 
-        // Hanya increment visit count jika bukan ADMIN
+        const isFavorited = !!favorites?.some((f) => f.userId === userId);
+
         const isAdmin = userRole === "ADMIN";
         if (!isAdmin) {
             await visitProductService(productId);
         }
 
-        // Ambil data promo yang terkait dengan produk ini
         const promo = await replicaPrisma.promo.findMany({
-            where: { productId: productId }
+            where: { productId },
         });
-        product = { ...product, promo };
-        return product;
+
+        return {
+            ...product,
+            isFavorited,
+            promo,
+        };
     } catch (err) {
         if (err instanceof AppError) throw err;
         throw new AppError("Failed to get product by ID", 500);

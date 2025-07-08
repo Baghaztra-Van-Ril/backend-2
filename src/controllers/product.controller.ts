@@ -24,9 +24,10 @@ export async function getProductByIdController(req: Request, res: Response<Respo
     try {
         const { id } = req.params;
         
+        const userId = req.user?.id;
         const userRole = req.user?.role;
 
-        const product = await getProductByIdService(Number(id), userRole);
+        const product = await getProductByIdService(Number(id), userId, userRole);
         res.setHeader("Cache-Control", "no-store");
 
         res.status(200).json({
