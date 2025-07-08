@@ -89,7 +89,15 @@ export async function visitProductService(productId: number) {
 }
 
 export async function searchProductService(query: string) {
+    const cleanedQuery = (query ?? "").trim().toLowerCase();
+    const redisKey = cleanedQuery ? `search_products_${cleanedQuery}` : `search_products_all`;
+
     try {
+        const cachedResults = await redis.get(redisKey);
+        if (typeof cachedResults === "string") {
+            return JSON.parse(cachedResults);
+        }
+
         const result = await esClient.search({
             index: "uas-topik-khusus-products",
             query: {
@@ -97,34 +105,36 @@ export async function searchProductService(query: string) {
                     must: [
                         {
                             term: {
-                                isDeleted: false, //  Filter produk yang belum dihapus
+                                isDeleted: false,
                             },
                         },
                     ],
-                    should: [
-                        {
-                            wildcard: {
-                                name: {
-                                    value: `*${query.toLowerCase()}*`,
-                                    case_insensitive: true,
+                    should: cleanedQuery
+                        ? [
+                            {
+                                wildcard: {
+                                    name: {
+                                        value: `*${cleanedQuery}*`,
+                                        case_insensitive: true,
+                                    },
                                 },
                             },
-                        },
-                        {
-                            wildcard: {
-                                description: {
-                                    value: `*${query.toLowerCase()}*`,
-                                    case_insensitive: true,
+                            {
+                                wildcard: {
+                                    description: {
+                                        value: `*${cleanedQuery}*`,
+                                        case_insensitive: true,
+                                    },
                                 },
                             },
-                        },
-                    ],
-                    minimum_should_match: 1, // setidaknya 1 dari `should` cocok
+                        ]
+                        : [],
+                    minimum_should_match: cleanedQuery ? 1 : 0,
                 },
             },
         });
 
-        return result.hits.hits.map((hit: any) => ({
+        const products = result.hits.hits.map((hit: any) => ({
             id: hit._id,
             name: hit._source.name,
             description: hit._source.description,
@@ -135,6 +145,10 @@ export async function searchProductService(query: string) {
             createdAt: hit._source.createdAt,
             updatedAt: hit._source.updatedAt,
         }));
+
+        await redis.set(redisKey, JSON.stringify(products), { ex: 3600 });
+
+        return products;
     } catch (err) {
         console.error("Elasticsearch search error:", (err as any)?.meta?.body || err);
         throw new AppError("Search failed", 500);

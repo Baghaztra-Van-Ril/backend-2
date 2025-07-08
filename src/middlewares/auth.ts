@@ -30,8 +30,9 @@ function extractToken(req: Request): string | null {
         req.cookies?.accessToken ||
         req.cookies?.jwt ||
         null;
-
-    return tokenFromHeader || tokenFromCookie;
+console.log("🍪 Cookies diterima:", req.cookies);
+    console.log("🌐 Host:", req.hostname);    return tokenFromHeader || tokenFromCookie;
+    
 }
 
 // Middleware: Untuk user & guest (optional auth)
