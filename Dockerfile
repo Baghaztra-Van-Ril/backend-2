@@ -1,24 +1,35 @@
-# Dockerfile
-FROM node:20-alpine
+# --- Multi-stage build for smaller production image ---
+# Stage 1: Build and compile
+FROM node:20-alpine AS builder
 
-# Set working directory
-WORKDIR /app
+WORKDIR /app/backend-2
 
-# Copy package files and install dependencies
 COPY package*.json ./
 RUN npm install
 
-# Copy the rest of the application
 COPY . .
 
-# Build Prisma client
+# Prisma akan menghasilkan binary engine untuk target yang ditentukan di schema.prisma
 RUN npx prisma generate
 
-# Jalankan inisialisasi index Elasticsearch saat build
-RUN npm run init:es || echo "Elasticsearch belum tersedia, inisialisasi dilewati"
+RUN npm run build
 
-# Expose port
+# Stage 2: Production runtime
+FROM node:20-alpine AS runner
+
+WORKDIR /app/backend-2
+
+COPY --from=builder /app/backend-2/package*.json ./
+COPY --from=builder /app/backend-2/node_modules ./node_modules
+COPY --from=builder /app/backend-2/dist ./dist
+COPY --from=builder /app/backend-2/prisma ./prisma
+
+# Pastikan dependensi OpenSSL terinstal di Alpine
+# Ini untuk library yang dibutuhkan runtime Prisma Engine
+RUN apk add --no-cache openssl libstdc++ ca-certificates
+
+# Hanya install Prisma CLI sebagai runtime dependency (tidak perlu generate lagi di sini)
+RUN npm install prisma --omit=dev --no-fund --no-audit --ignore-scripts
+
 EXPOSE 3020
-
-# Start server
-CMD ["npm", "run", "dev"]
+CMD ["npm", "start"]
