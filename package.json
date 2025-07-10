@@ -5,7 +5,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "ts-node-dev --respawn --transpile-only src/app.ts",
-    "start": "node --openssl-legacy-provider dist/index.js",
+    "start": "node --openssl-legacy-provider dist/app.js",
     "build": "tsc --project tsconfig.json && prisma generate",
     "init:es": "ts-node src/config/init_elasticsearch.ts"
   },
