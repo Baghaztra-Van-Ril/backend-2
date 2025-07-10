@@ -57,10 +57,12 @@ export async function getFavoritesCountService(productId: number) {
     }
 }
 
-export async function getAllFavoriteService() {
+export async function getAllFavoriteService(userId: number) {
+
     try {
         const favorites = await replicaPrisma.favorite.findMany({
             where: {
+                userId,
                 product: {
                     isDeleted: false,
                 },

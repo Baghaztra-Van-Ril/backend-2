@@ -60,7 +60,12 @@ export async function getFavoritesCountController(req: Request, res: Response<Re
 
 export async function getAllFavoriteController(req: Request, res: Response<ResponseApiType>) {
     try {
-        const favorites = await getAllFavoriteService();
+        const userId = Number(req.user?.id);
+        if (!userId || isNaN(userId)) {
+            res.status(401).json({ success: false, message: "Unauthorized: Invalid user" });
+            return;
+        }
+        const favorites = await getAllFavoriteService(userId);
         res.setHeader("Cache-Control", "no-store");
         res.status(200).json({
             success: true,
