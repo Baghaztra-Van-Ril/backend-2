@@ -213,9 +213,11 @@ export async function createProductService(
                 size: newProduct.size,
                 stock: newProduct.stock,
                 imageUrl: newProduct.imageUrl,
+                isDeleted: false,
                 createdAt: newProduct.createdAt,
                 updatedAt: newProduct.updatedAt,
             },
+            refresh: true,
         });
 
         await redis.del("all_products");
@@ -269,9 +271,11 @@ export async function updateProductService(
                 size: updatedProduct.size,
                 stock: updatedProduct.stock,
                 imageUrl: updatedProduct.imageUrl,
+                isDeleted: false,
                 createdAt: updatedProduct.createdAt,
                 updatedAt: updatedProduct.updatedAt,
             },
+            refresh: true,
         });
 
         return updatedProduct;
