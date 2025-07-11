@@ -3,7 +3,16 @@ import { body, query } from "express-validator";
 export const createProductValidator = [
     body("image").custom((_, { req }) => {
         if (!req.file) throw new Error("Product image is required.");
-        const allowedMimeType = ["image/jpeg", "image/png", "image/jpg"];
+        const allowedMimeType = [
+            "image/jpeg",
+            "image/png",
+            "image/jpg",
+            "image/webp",
+            "image/avif",
+            "image/gif",
+            "image/bmp",
+            "image/svg+xml"
+        ];
         if (!allowedMimeType.includes(req.file.mimetype)) {
             throw new Error("Unsupported image format. Allowed: jpg, jpeg, png.");
         }

@@ -25,13 +25,20 @@ const upload = multer({
             'image/avif', 'image/heic',
             'image/gif', 'image/bmp', 'image/tiff',
             'image/svg+xml', 'image/vnd.microsoft.icon',
+            'image/webp', 'image/WEBP'
         ];
-        const extAllowed = ['.jpg', '.jpeg', '.png', '.JPG', '.JPEG', '.PNG', '.webp', '.avif', '.heic', '.gif', '.bmp', '.tiff', '.svg', '.ico'];
+        const extAllowed = [
+            '.jpg', '.jpeg', '.png', '.JPG', '.JPEG', '.PNG',
+            '.webp', '.WEBP', 
+            '.avif', '.AVIF', '.heic', '.HEIC',
+            '.gif', '.GIF', '.bmp', '.BMP', '.tiff', '.TIFF',
+            '.svg', '.SVG', '.ico', '.ICO'
+        ];
         const ext = path.extname(file.originalname);
         if (allowed.includes(file.mimetype) && extAllowed.includes(ext)) {
             cb(null, true);
         } else {
-            cb(new Error('File harus berupa gambar (jpg/jpeg/png)'));
+            cb(new Error('File harus berupa gambar (jpg/jpeg/png/webp)'));
         }
     },
     limits: {
