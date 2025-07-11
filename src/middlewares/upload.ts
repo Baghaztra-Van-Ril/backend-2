@@ -20,9 +20,13 @@ const upload = multer({
     fileFilter: (req, file, cb) => {
         const allowed = [
             'image/jpeg', 'image/png', 'image/jpg',
-            'image/JPEG', 'image/PNG', 'image/JPG'
+            'image/JPEG', 'image/PNG', 'image/JPG',
+            'image/pjpeg', 'image/x-png', 'image/webp',
+            'image/avif', 'image/heic',
+            'image/gif', 'image/bmp', 'image/tiff',
+            'image/svg+xml', 'image/vnd.microsoft.icon',
         ];
-        const extAllowed = ['.jpg', '.jpeg', '.png', '.JPG', '.JPEG', '.PNG'];
+        const extAllowed = ['.jpg', '.jpeg', '.png', '.JPG', '.JPEG', '.PNG', '.webp', '.avif', '.heic', '.gif', '.bmp', '.tiff', '.svg', '.ico'];
         const ext = path.extname(file.originalname);
         if (allowed.includes(file.mimetype) && extAllowed.includes(ext)) {
             cb(null, true);
