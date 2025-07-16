@@ -12,8 +12,9 @@ Ini adalah salah satu microservice dalam sistem e-commerce yang bertanggung jawa
 
 - **Node.js** + **Express**
 - **Prisma ORM** + PostgreSQL
-- **Redis** (caching)
-- **Elasticsearch** (pencarian produk)
+- **Database Replication (primary and slave database)** menggunakan Aiven
+- **Redis** (caching) menggunakan Uptash
+- **Elasticsearch** (pencarian produk) menggunakan elastic cloud
 - **Cloudinary** (upload gambar)
 - Validasi: `express-validator`
 - File upload: `multer`
@@ -47,7 +48,7 @@ Ini adalah salah satu microservice dalam sistem e-commerce yang bertanggung jawa
 #### 1. Clone repositori
 ```bash
 git clone https://github.com/Baghaztra-Van-Ril/backend2
-cd backend2
+cd backend-2
 ```
 
 #### 2. Install semua dependensi
@@ -63,8 +64,9 @@ cp .env.example .env
 Lalu isi variabel berikut di file `.env`:
 ```bash
 DATABASE_URL=""
-FRONTEND_URL=""
+REPLICA_DATABASE_URL=""
 PORT=
+FRONTEND_URL=""
 ELASTICSEARCH_URL=""
 ELASTIC_API_KEY=""
 UPSTASH_REDIS_REST_URL=""
